@@ -1,0 +1,199 @@
+# https://taskfile.dev/usage/
+version: "3"
+
+silent: true
+
+vars:
+  HOME_RC_FILE: '{{.HOME_RC_FILE | default "~/.zshrc"}}'
+
+  # Tooling versions
+  PYTHON_VERSION: '{{.PYTHON_VERSION | default "3.12.2"}}'
+
+  # System detection
+  OS:
+    sh: uname -s | tr '[:upper:]' '[:lower:]'
+  ARCH:
+    sh: uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/'
+  NODE_ARCH:
+    sh: uname -m | sed 's/x86_64/x64/;s/aarch64/arm64/'
+
+
+tasks:
+  default:
+    desc: "List all available tasks"
+    aliases: [ help, man ]
+    cmds:
+      - task --list-all
+      - echo "Run 'task debug -- <task-name>' to debug task before running it"
+      - echo "See task summary with 'task --summary <task-name>'"
+
+  debug:
+    desc: "Debug a task"
+    summary: |
+      Debug a task by running it with verbose and dry-run flags.
+      It will print the command to be executed. Usage example:
+      $ task debug -- default
+    cmds:
+      - echo "OS={{.OS}}; ARCH={{.ARCH}}; PYTHON_VERSION={{.PYTHON_VERSION}}; HOME_RC_FILE={{.HOME_RC_FILE}};"
+      - echo "CLI_ARGS={{.CLI_ARGS | default "<none>"}};"
+      - task --verbose --dry {{.CLI_ARGS}}
+
+  dev:install:
+    desc: "Install all required tools for development"
+    summary: |
+      Install all required tools for development environment.
+    cmds:
+      - task: dev:install:curl
+      - task: dev:install:brew
+      - task: dev:install:jq
+      - task: dev:install:python
+      - task: dev:install:uv
+      - task: dev:install:lfs
+      - echo "All tools installed"
+
+  dev:install:python:
+    internal: true
+    desc: "Install Python runtime using pyenv"
+    summary: |
+      Python is a programming language that lets you work quickly and integrate systems more effectively.
+      Documentation: https://www.python.org/
+    cmds:
+      - |
+        # Check if python3 exists
+        if ! command -v python3 &> /dev/null; then
+            brew install pyenv
+            pyenv install {{.PYTHON_VERSION}}
+            pyenv global {{.PYTHON_VERSION}}
+        else
+            echo "Python is already installed"
+        fi
+
+  dev:install:uv:
+    internal: true
+    desc: "Install UV"
+    summary: |
+      UV is a tool for dependency management and packaging in Python.
+      Documentation: https://docs.astral.sh/uv/
+    cmds:
+      - |
+        # Check if UV exists
+        if ! command -v uv &> /dev/null; then
+            brew install uv
+        else
+            echo "UV is already installed"
+        fi
+
+  dev:install:jq:
+    internal: true
+    desc: "Install jq"
+    summary: |
+      Install jq tool for JSON processing.
+      Documentation: https://jqlang.org/manual/
+    cmds:
+      - |
+        # Check if jq exists
+        if ! command -v jq &> /dev/null; then
+            brew install jq
+        else
+            echo "jq is already installed"
+        fi
+
+  dev:install:curl:
+    internal: true
+    desc: "Install curl"
+    summary: |
+      Install curl tool for data transfer.
+      Documentation: https://curl.se/docs/manpage.html
+    cmds:
+      - |
+        # Check if curl exists
+        if ! command -v curl &> /dev/null; then
+            brew install curl
+        else
+            echo "curl is already installed"
+        fi
+
+  dev:install:brew:
+    internal: true
+    desc: "Install brew"
+    summary: |
+      Install brew package manager for macOS.
+      Documentation: https://brew.sh/
+    cmds:
+      - |
+        # Check if brew exists
+        if ! command -v brew &> /dev/null; then
+            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+            echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> {{.HOME_RC_FILE }}
+        else
+            echo "brew is already installed"
+        fi
+
+  dev:install:lfs:
+    internal: true
+    desc: "Install Git LFS"
+    summary: |
+      Install Git Large File Storage (LFS) for handling large files in Git repositories.
+        Documentation: https://git-lfs.github.com/
+    cmds:
+      - |
+        # Check if git lfs exists
+        if ! command -v git-lfs &> /dev/null; then
+            brew install git-lfs
+            git lfs install
+        else
+            echo "Git LFS is already installed"
+        fi
+
+  # Documentation tasks
+  docs:
+    desc: "List all documentation tasks"
+    summary: |
+      List all available documentation tasks for building, serving, and validating documentation.
+    cmds:
+      - echo "Available documentation tasks:"
+      - echo "  docs:build     - Build static documentation site"
+      - echo "  docs:serve     - Start development server with live reload"
+      - echo "  docs:clean     - Clean generated documentation files"
+
+  docs:build:
+    desc: "Build static documentation site"
+    summary: |
+      Build the documentation site using MkDocs with Material theme.
+      Generates static HTML files in the site/ directory ready for deployment.
+    cmds:
+      - echo "Building documentation site..."
+      - task: docs:prepare
+      - uv run mkdocs build --clean --strict {{.CLI_ARGS}}
+      - echo "Documentation built successfully in site/ directory"
+
+  docs:serve:
+    desc: "Start development server with live reload"
+    summary: |
+      Start the MkDocs development server with live reload functionality.
+      The server will automatically rebuild and refresh when documentation files change.
+    cmds:
+      - echo "Starting documentation development server..."
+      - echo "Server will be available at http://127.0.0.1:8000"
+      - echo "Press Ctrl+C to stop the server"
+      - task: docs:prepare
+      - uv run mkdocs serve --dev-addr=127.0.0.1:8000 {{.CLI_ARGS}}
+
+  docs:clean:
+    desc: "Clean generated documentation files"
+    summary: |
+      Remove the generated site/ directory and any temporary build files.
+    cmds:
+      - echo -n "Cleaning documentation build files... "
+      - rm -rf site/
+      - echo "done"
+
+  docs:prepare:
+    desc: "Prepare documentation environment"
+    internal: true
+    summary: |
+      Make sure all temporary files are copied into the documentation folder.
+    cmds:
+      - echo -n "Downloading OpenAPI specification... "
+      - curl -sS https://api.demo.napramak.ru/api-json | jq '.' > docs/api/swagger.json
+      - echo "done"
