@@ -9,6 +9,9 @@ vars:
   # Tooling versions
   PYTHON_VERSION: '{{.PYTHON_VERSION | default "3.12.2"}}'
 
+  # OpenAPI source for docs/api/swagger.json: the demo backend (override for local tests)
+  OPENAPI_URL: '{{.OPENAPI_URL | default "https://api.demo.napramak.io/api-json"}}'
+
   # System detection
   OS:
     sh: uname -s | tr '[:upper:]' '[:lower:]'
@@ -193,7 +196,9 @@ tasks:
     internal: true
     summary: |
       Make sure all temporary files are copied into the documentation folder.
+      Fails (and stops the build) when the download fails or is not JSON.
+    set: [pipefail]
     cmds:
       - echo -n "Downloading OpenAPI specification... "
-      - curl -sS https://api.demo.napramak.ru/api-json | jq '.' > docs/api/swagger.json
+      - curl -fsSL {{.OPENAPI_URL}} | jq -e '.' > docs/api/swagger.json
       - echo "done"
