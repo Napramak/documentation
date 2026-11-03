@@ -47,7 +47,7 @@ task
 The documentation build follows this sequence (see `docs:build` and `docs:serve` tasks):
 
 1. **Preparation phase** (`docs:prepare`): Downloads the OpenAPI specification
-   from https://api.demo.napramak.ru/api-json and saves it as `docs/api/swagger.json`
+   from https://api.demo.napramak.io/api-json and saves it as `docs/api/swagger.json`
 2. **MkDocs build**: Processes Markdown files with Jinja2 templating, applies Material theme, and generates static HTML
 
 ### Template System
